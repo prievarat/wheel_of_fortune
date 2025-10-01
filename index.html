@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spin & Learn — Wheel Revision Game</title>
+<style>
+  :root{
+    --bg:#0e1320;          /* deep navy */
+    --panel:#121a2b;       /* card bg */
+    --accent:#6ee7f3;      /* cyan */
+    --accent2:#a78bfa;     /* purple */
+    --good:#22c55e;        /* green */
+    --bad:#ef4444;         /* red */
+    --text:#e6eefc;        /* near white */
+    --muted:#98a6c7;       /* soft text */
+    --slice1:#4f46e5;      /* Numbers */
+    --slice2:#06b6d4;      /* Nationalities */
+    --slice3:#f59e0b;      /* Colours */
+    --slice4:#10b981;      /* Objects */
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background: radial-gradient(1200px 600px at 50% -150px, #1a2646 0%, var(--bg) 55%);
+    color:var(--text); display:flex; flex-direction:column;
+    align-items:center; justify-content:flex-start; gap:16px; padding:18px;
+  }
+  h1{margin:0 0 6px; font-weight:700; letter-spacing:.3px; font-size:clamp(18px,3vw,24px)}
+  .topbar{
+    width:min(1100px,95vw); display:flex; align-items:center; justify-content:space-between;
+    gap:10px; padding:10px 14px; border:1px solid #1e2a44; background:linear-gradient(180deg,#0e1628,#0a1120);
+    border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .score, .timer{
+    display:flex; align-items:center; gap:10px; font-weight:700;
+    background:rgba(255,255,255,.04); border:1px solid #1e2a44; padding:8px 12px; border-radius:12px;
+  }
+  .badge{font-size:.75rem; color:var(--muted)}
+  .wheel-wrap{
+    width:min(640px,92vw); aspect-ratio:1/1; position:relative;
+  }
+  .wheel{
+    width:100%; height:100%; border-radius:50%;
+    background:conic-gradient(
+      var(--slice1) 0 15deg, var(--slice2) 15deg 30deg, var(--slice3) 30deg 45deg, var(--slice4) 45deg 60deg,
+      var(--slice1) 60deg 75deg, var(--slice2) 75deg 90deg, var(--slice3) 90deg 105deg, var(--slice4) 105deg 120deg,
+      var(--slice1) 120deg 135deg, var(--slice2) 135deg 150deg, var(--slice3) 150deg 165deg, var(--slice4) 165deg 180deg,
+      var(--slice1) 180deg 195deg, var(--slice2) 195deg 210deg, var(--slice3) 210deg 225deg, var(--slice4) 225deg 240deg,
+      var(--slice1) 240deg 255deg, var(--slice2) 255deg 270deg, var(--slice3) 270deg 285deg, var(--slice4) 285deg 300deg,
+      var(--slice1) 300deg 315deg, var(--slice2) 315deg 330deg, var(--slice3) 330deg 345deg, var(--slice4) 345deg 360deg
+    );
+    border:10px solid #0b1221; box-shadow:0 20px 60px rgba(0,0,0,.5), inset 0 0 40px rgba(0,0,0,.35);
+    position:relative; transition:transform 4s cubic-bezier(.1,.9,.2,1); transform:rotate(0deg);
+    z-index:1;
+  }
+  .spin-btn{
+    position:absolute; inset:0; margin:auto; width:34%; height:34%;
+    border-radius:50%; border:8px solid rgba(255,255,255,.08);
+    background:radial-gradient(circle at 30% 30%, #88f5ff 0%, #37c6d9 40%, #126b8a 75%, #094059 100%);
+    display:flex; align-items:center; justify-content:center; color:#05202c; font-weight:900;
+    text-transform:uppercase; letter-spacing:1px; cursor:pointer; user-select:none;
+    box-shadow:0 8px 30px rgba(0,0,0,.6), inset 0 2px 0 rgba(255,255,255,.5);
+    z-index:3; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding:0 10px;
+  }
+  .pointer{
+    position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+    width:0; height:0; border-left:18px solid transparent; border-right:18px solid transparent;
+    border-bottom:26px solid #ffd166; filter:drop-shadow(0 4px 6px rgba(0,0,0,.5));
+    z-index:4;
+  }
+  .labels{
+    position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; font-size:12px; z-index:2;
+  }
+  .labels span{
+    position:absolute; transform-origin:50% calc(100% + 52%); /* push labels toward rim */
+    font-weight:700; color:#04121a; text-shadow:0 1px 0 rgba(255,255,255,.5);
+    background:rgba(255,255,255,.25); padding:2px 6px; border-radius:8px; border:1px solid rgba(255,255,255,.5);
+  }
+  .panel{
+    width:min(1100px,95vw); display:grid; grid-template-columns:1fr 1fr; gap:16px;
+  }
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    border:1px solid #1e2a44; border-radius:16px; padding:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .big{font-size:clamp(18px,3vw,22px); font-weight:700}
+  .muted{color:var(--muted)}
+  .prompt{
+    display:flex; align-items:center; justify-content:center; gap:12px; padding:12px; border-radius:12px;
+    background:rgba(255,255,255,.04); border:1px dashed #294066; cursor:pointer; user-select:none;
+  }
+  .task{
+    display:none; gap:12px; align-items:center; flex-wrap:wrap;
+  }
+  .task.show{display:flex;}
+  .input{
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  }
+  input[type="text"]{
+    padding:10px 12px; border-radius:10px; border:1px solid #34456a; outline:none; background:#0b1221; color:var(--text);
+    min-width:220px;
+  }
+  button{
+    background:#1a2b49; color:var(--text); border:1px solid #315085; border-radius:10px; padding:10px 14px; font-weight:700; cursor:pointer;
+  }
+  button:hover{filter:brightness(1.08)}
+  .pill{padding:6px 10px; border-radius:999px; font-weight:700}
+  .good{color:#052410; background:rgba(34,197,94,.7); border:1px solid #46e07f}
+  .bad{color:#3a0808; background:rgba(239,68,68,.7); border:1px solid #ff8a8a}
+  .colorbox{
+    width:64px; height:36px; border-radius:8px; border:1px solid rgba(255,255,255,.2); box-shadow: inset 0 0 12px rgba(0,0,0,.35);
+  }
+  .answer-reveal{margin-left:6px; color:var(--muted)}
+  .timerbar{
+    width:100%; height:8px; border-radius:999px; background:#0b1221; border:1px solid #203153; overflow:hidden;
+  }
+  .timerfill{
+    height:100%; width:100%; background:linear-gradient(90deg, #22c55e, #f59e0b, #ef4444);
+    transform-origin:left center; transform:scaleX(1);
+  }
+  @media (max-width:900px){
+    .panel{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>Spin & Learn — Wheel Revision Game</h1>
+      <div class="muted">Categories: Numbers · Nationalities · Colours · Objects</div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <div class="score"><span class="badge">Score</span><span id="scoreVal">0</span></div>
+      <div class="timer">
+        <span class="badge">Time</span>
+        <span id="timeVal">30</span>s
+      </div>
+    </div>
+  </div>
+
+  <div class="wheel-wrap">
+    <div class="pointer"></div>
+    <div id="wheel" class="wheel"></div>
+    <div id="spinBtn" class="spin-btn">Spin</div>
+    <div class="labels" id="labels"></div>
+  </div>
+
+  <div class="panel">
+    <div class="card">
+      <div class="big">Result</div>
+      <div id="resultLine" class="muted" style="margin-top:6px">Spin the wheel to get a category.</div>
+      <div id="readyBox" class="prompt" style="margin-top:12px; display:none;">
+        <strong>Ready? Click!</strong><span class="muted">Start the task.</span>
+      </div>
+      <div style="margin-top:12px" class="timerbar"><div id="timerFill" class="timerfill"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="big">Task</div>
+      <div id="taskBox" class="task" style="margin-top:10px">
+        <div id="taskPrompt" class="muted"></div>
+        <div id="colorSwatch" class="colorbox" style="display:none;"></div>
+        <div class="input">
+          <input id="answerInput" type="text" placeholder="Type your answer…" autocomplete="off" />
+          <button id="submitBtn">Submit (Enter)</button>
+          <button id="passBtn" title="Skip question for -2 points">Pass (−2)</button>
+        </div>
+        <div id="feedback" style="min-height:28px;"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // ====== Config & small placeholder DB (2 items per category) ======
+  const DB = {
+    nationalities: [
+      { country: "Poland", adj: ["polish"] },
+      { country: "Germany", adj: ["german"] },
+      { country: "England", adj: ["english"] },
+      { country: "China", adj: ["chinese"] },
+      { country: "South America", adj: ["South American"] },
+      { country: "Mexico", adj: ["Mexican"] },
+      { country: "Australia", adj: ["Australian"] },
+      { country: "Japan", adj: ["Japanese"] },
+      { country: "Turkey", adj: ["Turkish"] },
+      { country: "Scotland", adj: ["Scottish"] },
+      { country: "Europe", adj: ["European"] },
+      { country: "Hungary", adj: ["Hungarian"] },
+      { country: "France", adj: ["French"] },
+      { country: "Asia", adj: ["Asian"] },
+      { country: "Brazil", adj: ["Brazilian"] },
+      { country: "America / USA", adj: ["American"] },
+      { country: "Spain", adj: ["Spanish"] },
+      { country: "Italy", adj: ["Italian"] },
+      { country: "Czech Republic", adj: ["Czech"] },
+      { country: "North America", adj: ["North American"] },
+      { country: "Russia", adj: ["Russian"] },
+      { country: "Ireland", adj: ["Irish"] },
+      { country: "Argentina", adj: ["Argentinian"] },
+      { country: "Africa", adj: ["African"] },
+      { country: "Switzerland", adj: ["Swiss"] },
+      { country: "Egypt", adj: ["Egyptian"] },
+    ],
+    colours: [
+      { name: "red", hex: "#ef4444" },
+      { name: "blue", hex: "#2563eb" },
+      { name: "yellow", hex: "#facc15" },
+      { name: "green", hex: "#22c55e" },
+      { name: "orange", hex: "#f97316" },
+      { name: "purple", hex: "#a855f7" },
+      { name: "pink", hex: "#ec4899" },
+      { name: "brown", hex: "#8b4513" },
+      { name: "black", hex: "#111827" },
+      { name: "white", hex: "#ffffff" },
+    ],
+    numbers: [
+      { words: "forty-five", digits: "45" },
+      { words: "seventy-two", digits: "72" },
+      { words: "ninety-nine", digits: "99" },
+      { words: "one hundred and six", digits: "106" },
+      { words: "two hundred and eighty", digits: "280" },
+      { words: "three hundred and fifty-seven", digits: "357" },
+      { words: "four hundred and ninety", digits: "490" },
+      { words: "five hundred and sixty-one", digits: "561" },
+      { words: "six hundred and seventy-eight", digits: "678" },
+      { words: "seven hundred and forty-two", digits: "742" },
+      { words: "eight hundred and fifteen", digits: "815" },
+      { words: "nine hundred and ninety-nine", digits: "999" },
+      { words: "one thousand and twenty", digits: "1,020" },
+      { words: "one thousand four hundred and sixty-five", digits: "1,465" },
+      { words: "two thousand and thirty", digits: "2,030" },
+      { words: "three thousand nine hundred and ninety", digits: "3,990" },
+      { words: "five thousand two hundred", digits: "5,200" },
+      { words: "seven thousand six hundred and eighteen", digits: "7,618" },
+      { words: "ten thousand and fifty", digits: "10,050" },
+      { words: "twelve thousand three hundred", digits: "12,300" },
+      { words: "twenty-five thousand seven hundred and sixty-nine", digits: "25,769" },
+      { words: "thirty-two thousand one hundred", digits: "32,100" },
+      { words: "fifty thousand and five", digits: "50,005" },
+      { words: "seventy-four thousand six hundred and thirty-two", digits: "74,632" },
+      { words: "one hundred and twenty thousand", digits: "120,000" },
+      { words: "two hundred and fifty thousand four hundred and eighty", digits: "250,480" },
+      { words: "half a million", digits: "500,000" },
+      { words: "seven hundred and seventy-seven thousand seven hundred and seventy-seven", digits: "777,777" },
+      { words: "one million, two hundred and thirty-four thousand five hundred and sixty-seven", digits: "1,234,567" },
+      { words: "three million, ten thousand", digits: "3,010,000" },
+    ],
+    objects: [
+      { hu: "táska", en: ["a bag","bag"] },
+      { hu: "töltő", en: ["a charger","charger"] },
+      { hu: "érme", en: ["a coin","coin"] },
+      { hu: "bankkártya", en: ["a credit card","credit card","a debit card","debit card"] },
+      { hu: "napló", en: ["a diary","diary"] },
+      { hu: "szótár", en: ["a dictionary","dictionary"] },
+      { hu: "mappa", en: ["a file","file","a folder","folder"] },
+      { hu: "szemüveg", en: ["glasses"] },
+      { hu: "fejhallgató", en: ["headphones"] },
+      { hu: "személyi igazolvány", en: ["an identity card","identity card","an id card","id card"] },
+      { hu: "kulcs", en: ["a key","key"] },
+      { hu: "lámpa", en: ["a lamp","lamp"] },
+      { hu: "laptop", en: ["a laptop","laptop"] },
+      { hu: "magazin", en: ["a magazine","magazine"] },
+      { hu: "újság", en: ["a newspaper","newspaper"] },
+      { hu: "füzet", en: ["a notebook","notebook"] },
+      { hu: "toll", en: ["a pen","pen"] },
+      { hu: "ceruza", en: ["a pencil","pencil"] },
+      { hu: "mobiltelefon", en: ["a mobile phone","mobile phone","a phone","phone","a cell phone","cell phone"] },
+      { hu: "fénykép", en: ["a photo","photo","a photograph","photograph","a picture","picture"] },
+      { hu: "papírlap", en: ["a piece of paper","piece of paper"] },
+      { hu: "pénztárca (női)", en: ["a purse","purse","a handbag","handbag"] },
+      { hu: "olló", en: ["scissors"] },
+      { hu: "napszemüveg", en: ["sunglasses"] },
+      { hu: "tablet", en: ["a tablet","tablet"] },
+      { hu: "jegy", en: ["a ticket","ticket"] },
+      { hu: "papírzsebkendő", en: ["a tissue","tissue"] },
+      { hu: "esernyő", en: ["an umbrella","umbrella"] },
+      { hu: "pénztárca", en: ["a wallet","wallet"] },
+      { hu: "karóra", en: ["a watch","watch"] },
+    ],
+  };
+
+  // ====== State ======
+  let score = 0;
+  let spinning = false;
+  let currentCategory = null;
+  let currentQ = null;
+  let timer = null;
+  let timeLeft = 30;
+  const TIME_LIMIT = 30;
+
+  // ====== DOM ======
+  const wheel = document.getElementById('wheel');
+  const spinBtn = document.getElementById('spinBtn');
+  const labels = document.getElementById('labels');
+  const scoreVal = document.getElementById('scoreVal');
+  const timeVal = document.getElementById('timeVal');
+  const resultLine = document.getElementById('resultLine');
+  const readyBox = document.getElementById('readyBox');
+  const taskBox = document.getElementById('taskBox');
+  const taskPrompt = document.getElementById('taskPrompt');
+  const colorSwatch = document.getElementById('colorSwatch');
+  const answerInput = document.getElementById('answerInput');
+  const submitBtn = document.getElementById('submitBtn');
+  const passBtn = document.getElementById('passBtn');
+  const feedback = document.getElementById('feedback');
+  const timerFill = document.getElementById('timerFill');
+
+  // ====== Wheel setup (24 slices, repeating 4 categories) ======
+  const slices = 24;
+  const cats = ["Numbers","Nationalities","Colours","Objects"];
+  const catColor = {
+    Numbers: getComputedStyle(document.documentElement).getPropertyValue('--slice1'),
+    Nationalities: getComputedStyle(document.documentElement).getPropertyValue('--slice2'),
+    Colours: getComputedStyle(document.documentElement).getPropertyValue('--slice3'),
+    Objects: getComputedStyle(document.documentElement).getPropertyValue('--slice4'),
+  };
+
+  // Create text labels around wheel
+  for(let i=0;i<slices;i++){
+    const span=document.createElement('span');
+    const cat=cats[i%4];
+    const angle=i*(360/slices)+ (360/slices)/2; // center of slice
+    span.textContent=cat;
+    span.style.transform=`rotate(${angle}deg) translateY(-54%) rotate(${-angle}deg)`; // closer to rim
+    span.style.backgroundColor="rgba(255,255,255,.25)";
+    span.style.borderColor="rgba(255,255,255,.6)";
+    labels.appendChild(span);
+  }
+
+  // ====== Helpers ======
+  function resetForSpin(){
+    currentCategory=null; currentQ=null;
+    readyBox.style.display='none';
+    taskBox.classList.remove('show');
+    feedback.innerHTML='';
+    colorSwatch.style.display='none';
+    taskPrompt.textContent='';
+    answerInput.value='';
+    setTimerIdle();
+  }
+  function setTimerIdle(){
+    clearInterval(timer); timer=null;
+    timeLeft = TIME_LIMIT;
+    timeVal.textContent = timeLeft;
+    timerFill.style.transform = 'scaleX(1)';
+  }
+  function startTimer(){
+    clearInterval(timer);
+    timeLeft = TIME_LIMIT;
+    timeVal.textContent = timeLeft;
+    let t0 = Date.now();
+    timer = setInterval(()=>{
+      const elapsed = Math.floor((Date.now()-t0)/1000);
+      const remain = Math.max(TIME_LIMIT - elapsed, 0);
+      timeLeft = remain;
+      timeVal.textContent = remain;
+      timerFill.style.transform = `scaleX(${remain/TIME_LIMIT})`;
+      if(remain<=0){
+        clearInterval(timer);
+        handleWrong(true); // timeout counts as wrong
+      }
+    },200);
+  }
+  function norm(s){ return s.toLowerCase().trim().replace(/\s+/g,' ').replace(/[-–—]/g,'-'); }
+
+  function nextQuestion(category){
+    currentCategory = category;
+    taskBox.classList.add('show');
+    answerInput.value='';
+    answerInput.focus();
+    feedback.innerHTML='';
+    colorSwatch.style.display='none';
+
+    if(category==='Nationalities'){
+      currentQ = pickFrom(DB.nationalities);
+      taskPrompt.innerHTML = `<span class="badge">Nationalities</span> Country: <strong>${currentQ.country}</strong> → adjective?`;
+    } else if(category==='Colours'){
+      currentQ = pickFrom(DB.colours);
+      taskPrompt.innerHTML = `<span class="badge">Colours</span> What colour is this?`;
+      colorSwatch.style.display='inline-block';
+      colorSwatch.style.background = currentQ.hex;
+    } else if(category==='Numbers'){
+      currentQ = pickFrom(DB.numbers);
+      taskPrompt.innerHTML = `<span class="badge">Numbers</span> Write the digits for: <em>${currentQ.words}</em>`;
+    } else if(category==='Objects'){
+      currentQ = pickFrom(DB.objects);
+      taskPrompt.innerHTML = `<span class="badge">Objects</span> Translate to English: <strong>${currentQ.hu}</strong>`;
+    }
+    startTimer();
+  }
+
+  function pickFrom(arr){
+    if(arr.length===0){ return null; }
+    return arr[Math.floor(Math.random()*arr.length)];
+  }
+
+  function handleCorrect(){
+    score += 10;
+    scoreVal.textContent = score;
+    feedback.innerHTML = `<span class="pill good">Correct! +10</span>`;
+    endQuestion();
+  }
+  function handleWrong(timeout=false){
+    score -= 2;
+    scoreVal.textContent = score;
+    const reveal = correctAnswerText();
+    feedback.innerHTML = `<span class="pill bad">${timeout?'Time’s up!':'Not quite.'} −2</span><span class="answer-reveal">Answer: <em>${reveal}</em></span>`;
+    endQuestion();
+  }
+  function handlePass(){
+    score -= 2;
+    scoreVal.textContent = score;
+    const reveal = correctAnswerText();
+    feedback.innerHTML = `<span class="pill bad">Passed −2</span><span class="answer-reveal">Answer: <em>${reveal}</em></span>`;
+    endQuestion();
+  }
+  function correctAnswerText(){
+    if(!currentQ) return '';
+    if(currentCategory==='Nationalities') return currentQ.adj[0];
+    if(currentCategory==='Colours') return currentQ.name;
+    if(currentCategory==='Numbers') return currentQ.digits;
+    if(currentCategory==='Objects') return Array.isArray(currentQ.en) ? currentQ.en[0] : currentQ.en;
+    return '';
+  }
+  function endQuestion(){
+    clearInterval(timer); timer=null;
+    readyBox.style.display='none';
+    // Allow next spin by enabling button label to "Spin Again"
+    spinBtn.textContent='Spin';
+    spinBtn.style.pointerEvents='auto';
+  }
+
+  // ====== Events ======
+  spinBtn.addEventListener('click', ()=>{
+    if(spinning) return;
+    spinning = true;
+    resetForSpin();
+    spinBtn.style.pointerEvents='none';
+    spinBtn.textContent='Spinning…';
+
+    // random rotation: add multiple full turns + random slice
+    const sliceAngle = 360/slices;
+    const randomSliceIndex = Math.floor(Math.random()*slices); // 0..23
+    const baseTurns = 6; // full rotations
+    const finalDeg = baseTurns*360 + randomSliceIndex*sliceAngle + (sliceAngle/2); // aim dead center
+    wheel.style.transform = `rotate(${finalDeg}deg)`;
+
+    // After transition ends, compute category
+    wheel.addEventListener('transitionend', onSpinEnd, {once:true});
+    function onSpinEnd(){
+      const idx = (randomSliceIndex % 4); // 0..3 mapping to category order
+      const category = cats[idx];
+      resultLine.innerHTML = `You landed on <strong style="color:${catColor[category]}">${category}</strong>.`;
+      readyBox.style.display='flex';
+      spinning = false;
+    }
+  });
+
+  readyBox.addEventListener('click', ()=>{
+    if(readyBox.style.display==='none') return;
+    nextQuestion( resultLine.textContent.includes('Numbers') ? 'Numbers'
+               : resultLine.textContent.includes('Nationalities') ? 'Nationalities'
+               : resultLine.textContent.includes('Colours') ? 'Colours'
+               : 'Objects' );
+  });
+
+  submitBtn.addEventListener('click', ()=>{
+    if(!currentQ) return;
+    const val = norm(answerInput.value);
+    if(val===''){ answerInput.focus(); return; }
+
+    let ok=false;
+    if(currentCategory==='Nationalities'){
+      ok = currentQ.adj.map(norm).includes(val);
+    } else if(currentCategory==='Colours'){
+      ok = (val===norm(currentQ.name));
+    } else if(currentCategory==='Numbers'){
+      ok = (val.replace(/[, ]/g,'')===currentQ.digits.replace(/[, ]/g,''));
+    } else if(currentCategory==='Objects'){
+      const arr = Array.isArray(currentQ.en) ? currentQ.en : [currentQ.en];
+      ok = arr.map(norm).includes(val);
+    }
+    if(ok) handleCorrect(); else handleWrong(false);
+  });
+
+  passBtn.addEventListener('click', ()=> handlePass());
+  answerInput.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){ submitBtn.click(); }
+  });
+
+  // ====== Initialize labels tint (subtle)
+  [...labels.children].forEach((el,i)=>{
+    const category = cats[i%4];
+    el.style.color = '#04121a';
+    el.style.boxShadow = '0 2px 8px rgba(0,0,0,.2)';
+  });
+
+  // Initial timer idle
+  setTimerIdle();
+})();
+</script>
+</body>
+</html>
