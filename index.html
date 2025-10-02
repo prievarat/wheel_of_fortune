@@ -274,6 +274,7 @@
   let lastLandedCategory = null;
   let rotation = 0;        // accumulated rotation (deg) so we always spin forward
   let holdStartMs = null;  // press-and-hold start
+  let questionActive = false;  // lock scoring per question
 
   const wheel = document.getElementById('wheel');
   const spinBtn = document.getElementById('spinBtn');
@@ -292,6 +293,9 @@
   const feedback = document.getElementById('feedback');
   const timerFill = document.getElementById('timerFill');
   const legend = document.getElementById('legend');
+
+  // Initially disable controls until a question starts
+  submitBtn.disabled = true; passBtn.disabled = true; answerInput.disabled = true;
 
   // ====== Wheel setup (24 slices) ======
   const slices = 24;
@@ -322,6 +326,7 @@
   renderLegend();
 
   // ====== Helpers ======
+  function setControlsEnabled(on){ submitBtn.disabled = !on; passBtn.disabled = !on; answerInput.disabled = !on; }
   function resetForSpin(){
     currentCategory=null; currentQ=null; lastLandedCategory=null;
     readyBox.style.display='none';
@@ -353,6 +358,8 @@
   function nextQuestion(category){
     currentCategory = category;
     taskBox.classList.add('show');
+    questionActive = true;
+    setControlsEnabled(true);
     answerInput.value='';
     answerInput.focus();
     feedback.innerHTML='';
@@ -404,7 +411,15 @@
     if(currentCategory==='Objects') return Array.isArray(currentQ.en) ? currentQ.en[0] : currentQ.en;
     return '';
   }
-  function endQuestion(){ clearInterval(timer); readyBox.style.display='none'; spinBtn.textContent='Spin'; spinBtn.style.pointerEvents='auto'; }
+  function endQuestion(){
+    clearInterval(timer);
+    readyBox.style.display='none';
+    spinBtn.textContent='Spin';
+    spinBtn.style.pointerEvents='auto';
+    questionActive = false;
+    currentQ = null;
+    setControlsEnabled(false);
+  }
 
   // ====== Events ======
   // measure press duration for power
@@ -445,7 +460,9 @@
   readyBox.addEventListener('click', ()=>{ if(readyBox.style.display==='none') return; nextQuestion(lastLandedCategory || 'Numbers'); });
 
   submitBtn.addEventListener('click', ()=>{
-    if(!currentQ) return; const val = norm(answerInput.value); if(val===''){ answerInput.focus(); return; }
+    if(!questionActive || !currentQ) return;
+    const val = norm(answerInput.value);
+    if(val===''){ answerInput.focus(); return; }
     let ok=false;
     if(currentCategory==='Nationalities'){ ok = currentQ.adj.map(norm).includes(val);
     } else if(currentCategory==='Colours'){ ok = (val===norm(currentQ.name));
@@ -454,9 +471,9 @@
     ok ? handleCorrect() : handleWrong(false);
   });
 
-  passBtn.addEventListener('click', handlePass);
+  passBtn.addEventListener('click', ()=>{ if(!questionActive || !currentQ) return; handlePass(); });
   resetBtn.addEventListener('click', ()=>{ score=0; scoreVal.textContent=0; feedback.innerHTML=''; });
-  answerInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ submitBtn.click(); } });
+  answerInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !submitBtn.disabled){ submitBtn.click(); } });
 
 })();
 </script>
